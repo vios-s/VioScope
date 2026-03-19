@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "viosclaw"
+version = "0.1.0"
+description = "An implementation of claw for VIOS group."
+authors = [
+    { name = "Yuyang Xue", email = "yuyang.xue@ed.ac.uk"}
+]
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "ruff",
+    "mypy"
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I", "N", "W"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=viosclaw --cov-report=term-missing"
+
+[project.scripts]
+viosclaw = "viosclaw.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["viosclaw*"]
