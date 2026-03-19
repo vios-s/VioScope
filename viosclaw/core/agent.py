@@ -1,4 +1,7 @@
+from typing import cast
+
 import openai
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel
 
 from .. import config
@@ -27,7 +30,9 @@ def run_agent() -> None:
             break
         # 2. append to messages
         messages.append(Message(role="user", content=user_input))
-        messages_payload = [m.model_dump() for m in messages]
+        messages_payload = cast(
+            list[ChatCompletionMessageParam], [m.model_dump() for m in messages]
+        )
 
         # 3. send to LLM
         response = client.chat.completions.create(
@@ -43,5 +48,7 @@ def run_agent() -> None:
 
         # 5. append response to messages
         messages.append(
-            Message(role=assistant_message.role, content=assistant_message.content)
+            Message(
+                role=assistant_message.role, content=assistant_message.content or ""
+            )
         )

@@ -1,7 +1,7 @@
 from .core.agent import run_agent
 
 
-def main():
+def main() -> None:
     print("Welcome to Viosclaw! Type 'exit' or 'quit' to end the session.")
     run_agent()
 
