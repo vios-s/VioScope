@@ -70,16 +70,24 @@ def run_agent() -> None:
                 )
             )
         elif finish_reason == "length":
-            console.print(
-                Panel(
-                    Markdown(
-                        "Partial response (truncated): "
-                        + assistant_response.message.content
-                        + "..."
-                    ),
-                    title="Assistant (truncated)",
+            if assistant_response.message.content is not None:
+                console.print(
+                    Panel(
+                        Markdown(
+                            "Partial response (truncated): "
+                            + assistant_response.message.content
+                            + "..."
+                        ),
+                        title="Assistant (truncated)",
+                    )
                 )
-            )
+            else:
+                console.print(
+                    Panel(
+                        Markdown("Response truncated due to length."),
+                        title="Assistant (truncated)",
+                    )
+                )
         elif finish_reason == "tool_calls":
             # TODO: handle tool calls
             pass
