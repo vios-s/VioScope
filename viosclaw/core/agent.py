@@ -21,9 +21,7 @@ def run_agent() -> None:
 
     print_banner(console)
 
-    messages: list[dict] = [
-        {"role": "system", "content": "You are a helpful assistant."}
-    ]
+    messages: list[dict] = [{"role": "system", "content": "You are a helpful assistant."}]
 
     # outer loop: wait for user input
     while True:

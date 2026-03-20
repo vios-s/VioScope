@@ -40,9 +40,7 @@ def tool_write_file(file_path: str, content: str) -> str:
 
     try:
         target = safe_path(file_path)
-        target.parent.mkdir(
-            parents=True, exist_ok=True
-        )  # ensure parent directories exist
+        target.parent.mkdir(parents=True, exist_ok=True)  # ensure parent directories exist
         with open(target, "w") as f:
             f.write(content)
         return "File written successfully."
