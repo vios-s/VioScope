@@ -1,20 +1,13 @@
-from typing import cast
+import json
 
 import openai
-from openai.types.chat import ChatCompletionMessageParam
-from pydantic import BaseModel
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 
 from .. import config
 from .banner import print_banner
-
-
-class Message(BaseModel):
-    role: str
-    content: str
-
+from .tools import TOOL_HANDLERS, TOOLS
 
 client = openai.OpenAI(
     base_url=config.OPENROUTER_BASE_URL,
@@ -28,74 +21,79 @@ def run_agent() -> None:
 
     print_banner(console)
 
-    messages: list[Message] = [
-        Message(role="system", content="You are a helpful assistant.")
+    messages: list[dict] = [
+        {"role": "system", "content": "You are a helpful assistant."}
     ]
+
+    # outer loop: wait for user input
     while True:
-        # 1. get user input
         console.print("[bold cyan]You >[/bold cyan] ", end="")
         user_input = input()
         if user_input.lower() in ["exit", "quit"]:
             console.print("[dim]Goodbye![/dim]")
             break
-        # 2. append to messages
-        messages.append(Message(role="user", content=user_input))
-        messages_payload = cast(
-            list[ChatCompletionMessageParam], [m.model_dump() for m in messages]
-        )
 
-        # 3. send to LLM
-        try:
-            with console.status("[dim]Thinking...[/dim]", spinner="dots"):
-                response = client.chat.completions.create(
-                    model=config.OPENROUTER_DEFAULT_MODEL,
-                    messages=messages_payload,
-                    max_tokens=config.MAX_TOKENS,
-                    temperature=config.TEMPERATURE,
-                )
-        except Exception as e:
-            console.print(f"[bold red]API Error:[/bold red] {str(e)}")
-            messages.pop()  # remove user message if API call fails
-            continue
+        messages.append({"role": "user", "content": user_input})
 
-        # 4. print response
-        assistant_response = response.choices[0]
-        finish_reason = assistant_response.finish_reason
+        # inner loop: LLM + tool dispatch (no user input here)
+        while True:
+            try:
+                with console.status("[dim]Thinking...[/dim]", spinner="dots"):
+                    response = client.chat.completions.create(
+                        model=config.OPENROUTER_DEFAULT_MODEL,
+                        messages=messages,
+                        max_tokens=config.MAX_TOKENS,
+                        temperature=config.TEMPERATURE,
+                        tools=TOOLS,
+                    )
+            except Exception as e:
+                console.print(f"[bold red]API Error:[/bold red] {str(e)}")
+                messages.pop()  # remove user message if API call fails
+                break
 
-        if finish_reason == "stop":
-            console.print(
-                Panel(
-                    Markdown(assistant_response.message.content or ""),
-                    title="Assistant",
-                )
-            )
-        elif finish_reason == "length":
-            if assistant_response.message.content is not None:
+            assistant_response = response.choices[0]
+            finish_reason = assistant_response.finish_reason
+
+            # always append assistant message to history
+            messages.append(assistant_response.message.model_dump(exclude_unset=True))
+
+            if finish_reason == "stop":
                 console.print(
                     Panel(
-                        Markdown(
-                            "Partial response (truncated): "
-                            + assistant_response.message.content
-                            + "..."
-                        ),
+                        Markdown(assistant_response.message.content or ""),
+                        title="Assistant",
+                    )
+                )
+                break
+            elif finish_reason == "length":
+                console.print(
+                    Panel(
+                        Markdown((assistant_response.message.content or "") + "..."),
                         title="Assistant (truncated)",
                     )
                 )
-            else:
-                console.print(
-                    Panel(
-                        Markdown("Response truncated due to length."),
-                        title="Assistant (truncated)",
+                break
+            elif finish_reason == "tool_calls":
+                # TODO: execute tools and append results to messages, then continue
+                # 1. go through `assistant_response.message.tool_calls` list
+                for tool_call in assistant_response.message.tool_calls or []:
+                    tool_name = tool_call.function.name
+                    tool_args = tool_call.function.arguments
+                    console.print(
+                        f"[bold yellow]Tool call:[/bold yellow] {tool_name}({tool_args})"
                     )
-                )
-        elif finish_reason == "tool_calls":
-            # TODO: handle tool calls
-            pass
 
-        # 5. append response to messages
-        messages.append(
-            Message(
-                role=assistant_response.message.role,
-                content=assistant_response.message.content or "",
-            )
-        )
+                    # 2. for each tool call, find the handler in TOOL_HANDLERS
+                    # and execute it
+                    result = TOOL_HANDLERS[tool_name](**json.loads(tool_args))
+
+                    # 3. append tool results to messages with role "tool"
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": tool_name,
+                            "content": result,
+                        }
+                    )
+                continue

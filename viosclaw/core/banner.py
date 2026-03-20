@@ -34,4 +34,7 @@ def print_banner(console: Console) -> None:
             "type [bold white]/help[/bold white] for commands[/dim]"
         )
     )
+    console.print(
+        Align.center("[bold magenta]WORKDIR: [/bold magenta] [underline blue]")
+    )
     console.print()
