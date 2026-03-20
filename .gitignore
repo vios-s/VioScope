@@ -214,3 +214,6 @@ skills-lock.json
 
 # pytest
 tests/
+
+# Miscs
+.resources/
