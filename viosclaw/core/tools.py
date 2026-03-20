@@ -2,6 +2,7 @@ import subprocess
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import Callable
 
 from .ui import console
 
@@ -76,12 +77,13 @@ def tool_search_arxiv(query: str) -> str:
     try:
         url = f"http://export.arxiv.org/api/query?search_query=all:{urllib.parse.quote(query)}&max_results=5"
         with urllib.request.urlopen(url, timeout=10) as resp:
-            return resp.read().decode("utf-8")
+            result: str = resp.read().decode("utf-8")
+            return result
     except Exception as e:
         return f"Error searching arXiv: {str(e)}"
 
 
-TOOL_HANDLERS = {
+TOOL_HANDLERS: dict[str, Callable[..., str]] = {
     "read_file": tool_read_file,
     "write_file": tool_write_file,
     "run_python": tool_run_python,
