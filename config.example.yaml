@@ -1,0 +1,55 @@
+# ~/.vioscope/config.yaml
+
+model:
+  provider: anthropic
+  model_id: claude-sonnet-4-6
+  api_key: ${ANTHROPIC_API_KEY}
+
+knowledge_base:
+  local_path: ~/.vioscope/kb
+  gitbook:
+    enabled: true
+    space_id: "your-space-id"
+    token: ${GITBOOK_PAT}
+    vioscope_root: "/vioscope"
+  internal_wiki:
+    enabled: false
+    mcp_server: "http://localhost:8765"
+
+agents:
+  scout:
+    model:
+      provider: anthropic
+      model_id: claude-haiku-4-5-20251001
+    max_papers: 50
+    databases: [semantic_scholar, arxiv, pubmed, openalex]
+    citation_verify: true
+
+  synth:
+    pass
+
+  spark:
+    model:
+      provider: anthropic
+      model_id: claude-opus-4-6
+    debate_roles: [innovator, pragmatist, contrarian]
+    max_pivot_rounds: 3
+
+  skeptic:
+    default_mode: constructive
+
+  scribe:
+    # Uncomment to override provider
+    # model:
+    #   provider: openai
+    #   model_id: gpt-4o
+    #   api_key: ${OPENAI_API_KEY}
+    default_template: neurips
+
+  steward:
+    model:
+      provider: anthropic
+      model_id: claude-haiku-4-5-20251001
+
+plugins:
+  enabled: []
