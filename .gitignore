@@ -207,10 +207,14 @@ marimo/_lsp/
 __marimo__/
 
 # Agents
+.agent/
 .agents/
 .claude/
+.codebuddy/
 .vscode/
 skills-lock.json
+_bmad/
+_bmad-output/
 
 # pytest
 tests/
@@ -218,3 +222,4 @@ tests/
 # Miscellaneous
 blogging/
 .resources/
+
