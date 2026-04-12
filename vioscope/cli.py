@@ -17,7 +17,7 @@ def main(ctx: typer.Context) -> None:
     """
 
     if ctx.invoked_subcommand is not None:
-        return
+        return  # pragma: no cover (no subcommands yet)
 
     console.print(
         Panel(
@@ -29,5 +29,5 @@ def main(ctx: typer.Context) -> None:
     raise typer.Exit()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     app()
