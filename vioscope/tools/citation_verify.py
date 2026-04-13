@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from difflib import SequenceMatcher
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlencode
@@ -86,7 +87,9 @@ def _crossref_lookup(title: str) -> Optional[Dict[str, Any]]:
     doi = best.get("DOI") or best.get("doi")
     url = best.get("URL") or (best.get("link", [{}])[0].get("URL") if best.get("link") else None)
     abstract = best.get("abstract", "")
-    return {"doi": doi, "url": url, "abstract": abstract}
+    titles = best.get("title") or []
+    resolved_title = titles[0] if isinstance(titles, list) and titles else ""
+    return {"doi": doi, "url": url, "abstract": abstract, "title": resolved_title}
 
 
 def _check_url_live(url: str) -> bool:
@@ -102,6 +105,10 @@ def _check_url_live(url: str) -> bool:
 
 def _similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, a or "", b or "").ratio()
+
+
+def _plain_text(value: str) -> str:
+    return re.sub(r"<[^>]+>", " ", value or "").strip()
 
 
 def _success_payload(doi: Optional[str], url: Optional[str], similarity: float) -> str:
@@ -157,8 +164,12 @@ def verify_citation(title: str, authors: List[str], year: int) -> str:
         return _failure_payload(3, "URL not reachable")
 
     # Layer 4: abstract similarity
-    abstract_source = s2.get("abstract") or cr.get("abstract", "")
-    sim = _similarity(title.lower(), abstract_source.lower())
+    abstract_source = _plain_text(str(s2.get("abstract") or cr.get("abstract") or ""))
+    resolved_title = _plain_text(str(s2.get("title") or cr.get("title") or ""))
+    sim = max(
+        _similarity(title.lower(), abstract_source.lower()),
+        _similarity(title.lower(), resolved_title.lower()),
+    )
     if sim <= 0.7:
         return _failure_payload(4, f"Low similarity: {sim:.2f}")
 

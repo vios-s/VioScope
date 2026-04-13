@@ -217,9 +217,6 @@ skills-lock.json
 _bmad/
 _bmad-output/
 
-# pytest
-tests/
-
 # Miscellaneous
 blogging/
 .resources/

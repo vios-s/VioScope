@@ -80,6 +80,7 @@ def _normalize_record(record: Dict[str, Any]) -> Dict[str, Any]:
         "authors": authors,
         "year": record.get("publication_year") or record.get("year"),
         "abstract": abstract,
+        "abstract_inverted_index": abstract,
         "doi": record.get("doi", ""),
         "open_access_url": open_access_url,
     }

@@ -1,40 +1,77 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Callable, Dict, List
+from functools import lru_cache
+from typing import TYPE_CHECKING, Any, Callable
 
-try:  # pragma: no cover - optional dependency
-    from agno.agent import Agent  # type: ignore[import-not-found]
+from pydantic import BaseModel, ConfigDict
+
+if TYPE_CHECKING:  # pragma: no cover
+    from agno.agent import Agent as AgnoAgent  # type: ignore[import-not-found]
     from agno.tools.arxiv import ArxivTools  # type: ignore[import-not-found]
     from agno.tools.pubmed import PubmedTools  # type: ignore[import-not-found]
-except Exception:  # pragma: no cover - fallback when agno is unavailable
+else:  # pragma: no cover - runtime fallback when agno is unavailable
 
-    class _FallbackAgent:  # type: ignore[override]
+    class AgnoAgent:
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             self.args = args
             self.kwargs = kwargs
+            for key, value in kwargs.items():
+                setattr(self, key, value)
 
-        def search(self, *args: Any, **kwargs: Any) -> Any:  # pragma: no cover
-            raise NotImplementedError("Agent.search unavailable")
-
-    class _FallbackArxivTools:  # type: ignore[override]
-        def search(self, *args: Any, **kwargs: Any) -> Any:  # pragma: no cover
+    class ArxivTools:
+        def search(self, *args: Any, **kwargs: Any) -> Any:
             raise RuntimeError("ArxivTools unavailable")
 
-    class _FallbackPubmedTools:  # type: ignore[override]
-        def search(self, *args: Any, **kwargs: Any) -> Any:  # pragma: no cover
+    class PubmedTools:
+        def search(self, *args: Any, **kwargs: Any) -> Any:
             raise RuntimeError("PubmedTools unavailable")
 
-    Agent = _FallbackAgent  # type: ignore[assignment,misc]
-    ArxivTools = _FallbackArxivTools  # type: ignore[assignment,misc]
-    PubmedTools = _FallbackPubmedTools  # type: ignore[assignment,misc]
+    try:
+        from agno.agent import Agent as _RuntimeAgnoAgent  # type: ignore[import-not-found]
+        from agno.tools.arxiv import (
+            ArxivTools as _RuntimeArxivTools,  # type: ignore[import-not-found]
+        )
+        from agno.tools.pubmed import (
+            PubmedTools as _RuntimePubmedTools,  # type: ignore[import-not-found]
+        )
+    except Exception:
+        pass
+    else:
+        AgnoAgent = _RuntimeAgnoAgent
+        ArxivTools = _RuntimeArxivTools
+        PubmedTools = _RuntimePubmedTools
 
-from vioscope.config import AgentConfig
+from vioscope.agents._models import build_agno_model
+from vioscope.config import AgentConfig, ModelConfig, VioScopeConfig
+from vioscope.configs import load_agent_defaults
+from vioscope.core.circuit_breaker import CircuitBreaker
 from vioscope.schemas.pipeline import PipelineSession
 from vioscope.schemas.research import Paper
 from vioscope.tools import search_openalex, search_semantic_scholar, verify_citation
 
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+
+class ScoutDefaults(BaseModel):
+    name: str
+    model: ModelConfig
+    timeout_seconds: int
+    instructions: list[str]
+
+    model_config = ConfigDict(extra="forbid")
+
+
+@lru_cache(maxsize=1)
+def load_scout_defaults() -> ScoutDefaults:
+    return ScoutDefaults.model_validate(load_agent_defaults("scout"))
+
+
+def _resolve_model_config(cfg: AgentConfig | VioScopeConfig) -> ModelConfig:
+    defaults = load_scout_defaults()
+    if isinstance(cfg, VioScopeConfig):
+        return cfg.get_model_for_agent("scout", default_model=defaults.model)
+    if cfg.model:
+        return defaults.model.model_copy(update=cfg.model.model_dump(exclude_none=True))
+    return defaults.model
 
 
 def _safe_json_loads(payload: Any) -> Any:
@@ -46,9 +83,10 @@ def _safe_json_loads(payload: Any) -> Any:
     return payload
 
 
-def _normalize_record(record: Dict[str, Any], database: str) -> Paper:
+def _normalize_record(record: dict[str, Any], database: str) -> Paper:
     paper_id = str(
         record.get("paper_id")
+        or record.get("paperId")
         or record.get("id")
         or record.get("uid")
         or record.get("doi")
@@ -56,7 +94,12 @@ def _normalize_record(record: Dict[str, Any], database: str) -> Paper:
         or ""
     )
     title = record.get("title") or ""
-    abstract = record.get("abstract") or record.get("summary") or ""
+    abstract = (
+        record.get("abstract")
+        or record.get("summary")
+        or record.get("abstract_inverted_index")
+        or ""
+    )
     authors = record.get("authors") or record.get("author") or []
     if not isinstance(authors, list):
         authors = []
@@ -64,16 +107,21 @@ def _normalize_record(record: Dict[str, Any], database: str) -> Paper:
     if isinstance(year, str) and year.isdigit():
         year = int(year)
 
-    url = record.get("url") or record.get("open_access_url") or record.get("landing_page_url")
+    url = (
+        record.get("url")
+        or record.get("open_access_url")
+        or record.get("openAccessPdf", {}).get("url")
+        or record.get("landing_page_url")
+    )
     venue = record.get("venue") or record.get("journal")
     return Paper(
         paper_id=paper_id,
         title=title,
-        abstract=abstract,
-        url=url,
+        abstract=abstract if isinstance(abstract, str) else "",
+        url=url if isinstance(url, str) else None,
         source=record.get("source") or database,
         database=database,
-        authors=[a for a in authors if isinstance(a, str)],
+        authors=[author for author in authors if isinstance(author, str)],
         year=year if isinstance(year, int) else None,
         venue=venue if isinstance(venue, str) else None,
     )
@@ -90,7 +138,7 @@ def _apply_verification(paper: Paper) -> Paper:
     return paper.model_copy(update={"verified": verified})
 
 
-def _call_tool(func: Callable[..., Any], query: str, limit: int) -> List[Dict[str, Any]]:
+def _call_tool(func: Callable[..., Any], query: str, limit: int) -> list[dict[str, Any]]:
     try:
         result = func(query=query, limit=limit)  # type: ignore[arg-type]
     except TypeError:
@@ -102,8 +150,7 @@ def _call_tool(func: Callable[..., Any], query: str, limit: int) -> List[Dict[st
     return data if isinstance(data, list) else []
 
 
-def _call_tool_list(func: Callable[..., Any], query: str, limit: int) -> List[Dict[str, Any]]:
-    # agno arxiv/pubmed may not accept limit; allow simple call
+def _call_tool_list(func: Callable[..., Any], query: str, limit: int) -> list[dict[str, Any]]:
     try:
         result = func(query=query, max_results=limit)
     except TypeError:
@@ -118,17 +165,59 @@ def _call_tool_list(func: Callable[..., Any], query: str, limit: int) -> List[Di
     return data if isinstance(data, list) else []
 
 
-class ScoutAgent(Agent):
+class ScoutAgent(AgnoAgent):
     def __init__(
         self,
-        cfg: AgentConfig,
-        arxiv_tools: ArxivTools,
-        pubmed_tools: PubmedTools,
+        cfg: AgentConfig | VioScopeConfig,
+        *,
+        arxiv_tools: ArxivTools | None = None,
+        pubmed_tools: PubmedTools | None = None,
+        circuit_breaker: CircuitBreaker[list[dict[str, Any]]] | None = None,
     ) -> None:
-        super().__init__(model=cfg.model.model_id if cfg.model else DEFAULT_MODEL)
+        defaults = load_scout_defaults()
+        resolved_model = _resolve_model_config(cfg)
+        model = build_agno_model(resolved_model, defaults.timeout_seconds)
+        resolved_arxiv_tools = arxiv_tools or ArxivTools()
+        resolved_pubmed_tools = pubmed_tools or PubmedTools()
+        tool_list = [
+            search_semantic_scholar,
+            search_openalex,
+            verify_citation,
+            resolved_arxiv_tools,
+            resolved_pubmed_tools,
+        ]
+        self._init_error: Exception | None = None
+        try:
+            super().__init__(
+                name=defaults.name,
+                model=model,
+                instructions=defaults.instructions,
+                tools=tool_list,
+            )
+        except Exception as exc:  # pragma: no cover - depends on optional provider SDKs
+            self._init_error = exc
+            self.model = model
+            self.instructions = defaults.instructions
+            self.name = defaults.name
+            self.tools = tool_list
+
         self.cfg = cfg
-        self.arxiv_tools = arxiv_tools
-        self.pubmed_tools = pubmed_tools
+        self.resolved_model = resolved_model
+        self.timeout_seconds = defaults.timeout_seconds
+        self.arxiv_tools = resolved_arxiv_tools
+        self.pubmed_tools = resolved_pubmed_tools
+        self.circuit_breaker = circuit_breaker or CircuitBreaker(backoff_seconds=0.0)
+
+    def _query_database(self, database: str, query: str, limit: int) -> list[dict[str, Any]]:
+        if database == "semantic_scholar":
+            return _call_tool(search_semantic_scholar, query, limit)
+        if database == "openalex":
+            return _call_tool(search_openalex, query, limit)
+        if database == "arxiv":
+            return _call_tool_list(self.arxiv_tools.search, query, limit)  # type: ignore[attr-defined]
+        if database == "pubmed":
+            return _call_tool_list(self.pubmed_tools.search, query, limit)  # type: ignore[attr-defined]
+        return []
 
     def search(self, session: PipelineSession, database: str) -> PipelineSession:
         allowed = session.config.databases or []
@@ -142,32 +231,27 @@ class ScoutAgent(Agent):
         )
         limit = max(1, session.config.max_papers)
 
-        if database == "semantic_scholar":
-            raw_records = _call_tool(search_semantic_scholar, query, limit)
-        elif database == "openalex":
-            raw_records = _call_tool(search_openalex, query, limit)
-        elif database == "arxiv":
-            raw_records = _call_tool_list(self.arxiv_tools.search, query, limit)  # type: ignore[attr-defined]
-        elif database == "pubmed":
-            raw_records = _call_tool_list(self.pubmed_tools.search, query, limit)  # type: ignore[attr-defined]
-        else:
-            raw_records = []
-
+        raw_records = self.circuit_breaker.call(
+            lambda: self._query_database(database, query, limit)
+        )
         if not raw_records:
             return session
 
         papers = [_normalize_record(rec, database) for rec in raw_records if isinstance(rec, dict)]
-        verified = [_apply_verification(p) for p in papers]
+        verified = [_apply_verification(paper) for paper in papers]
         updated_results = (session.search_results or []) + verified
         return session.model_copy(update={"search_results": updated_results})
 
 
-def build_scout(cfg: AgentConfig) -> Agent:
+def build_scout(cfg: AgentConfig | VioScopeConfig) -> ScoutAgent:
     """Construct the Scout agent configured with database tools and citation verification."""
 
-    arxiv_tools = ArxivTools()
-    pubmed_tools = PubmedTools()
-    return ScoutAgent(cfg=cfg, arxiv_tools=arxiv_tools, pubmed_tools=pubmed_tools)
+    return ScoutAgent(cfg=cfg)
 
 
-__all__ = ["build_scout", "ScoutAgent"]
+__all__ = [
+    "ScoutAgent",
+    "ScoutDefaults",
+    "build_scout",
+    "load_scout_defaults",
+]
