@@ -69,9 +69,7 @@ class VioScopeConfig(BaseModel):
         agent = self.agents.get(agent_name)
         if agent and agent.model:
             return agent.model
-        if self.model:
-            return self.model
-        raise ConfigError("Global model configuration is required.")
+        return self.model
 
 
 def load_config(path: Path | str | None = None) -> VioScopeConfig:
@@ -81,7 +79,7 @@ def load_config(path: Path | str | None = None) -> VioScopeConfig:
 
     if not config_path.exists():
         if path is None:
-            _create_default_config(config_path)
+            create_default_config(config_path)
         else:
             raise ConfigError(f"Config file not found at {config_path}")
 
@@ -96,7 +94,6 @@ def load_config(path: Path | str | None = None) -> VioScopeConfig:
     except ValidationError as exc:
         raise ConfigError(f"Invalid configuration: {exc}") from exc
 
-    _validate_precedence(config)
     validate_api_keys(config)
 
     return config
@@ -114,19 +111,15 @@ def validate_api_keys(config: VioScopeConfig) -> None:
             continue
 
         value = os.getenv(env_key)
-        if not value:
+        if value is None:
             raise ConfigError(f"Missing API key for provider '{provider}'. Set {env_key}.")
 
 
-def _validate_precedence(config: VioScopeConfig) -> None:
-    if config.model is None:
-        raise ConfigError("Global model configuration is required.")
-
-
-def _create_default_config(path: Path) -> None:
+def create_default_config(path: Path) -> None:
+    """Create a default config file at *path* with secure permissions (chmod 600)."""
     base_dir = path.parent
     try:
-        safe_path(base_dir, path)
+        safe_path(base_dir, path.name)
     except ValueError as exc:
         raise ConfigError(f"Invalid default config path: {path}") from exc
 
@@ -147,6 +140,7 @@ __all__ = [
     "ConfigError",
     "ModelConfig",
     "VioScopeConfig",
+    "create_default_config",
     "load_config",
     "validate_api_keys",
 ]

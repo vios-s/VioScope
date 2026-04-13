@@ -31,4 +31,5 @@ jobs:
         run: mypy vioscope/
         env:
           OPENROUTER_API_KEY: dummy-key-for-type-check
+          ANTHROPIC_API_KEY: dummy-key-for-type-check
 

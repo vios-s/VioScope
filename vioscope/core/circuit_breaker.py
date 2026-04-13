@@ -24,30 +24,25 @@ class CircuitBreaker(Generic[T]):
         self.failure_count = 0
 
     def call(self, fn: Callable[[], T]) -> T:
-        try:
-            result = fn()
-            self.failure_count = 0
-            return result
-        except Exception as first_error:  # noqa: BLE001
-            self.failure_count += 1
-            if self.failure_count > self.max_failures:
-                raise CircuitOpenError(
-                    f"Circuit open after {self.failure_count} failures"
-                ) from first_error
-
-            self.sleep_fn(self.backoff_seconds)
-
+        last_exc: BaseException | None = None
+        for attempt in range(self.max_failures + 1):
             try:
                 result = fn()
                 self.failure_count = 0
                 return result
-            except Exception as second_error:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
                 self.failure_count += 1
                 if self.failure_count > self.max_failures:
                     raise CircuitOpenError(
                         f"Circuit open after {self.failure_count} failures"
-                    ) from second_error
-                raise
+                    ) from exc
+                if attempt < self.max_failures:
+                    self.sleep_fn(self.backoff_seconds)
+        # Unreachable: loop always raises CircuitOpenError before exhausting attempts
+        raise CircuitOpenError(  # pragma: no cover
+            f"Circuit open after {self.failure_count} failures"
+        ) from last_exc
 
 
 __all__ = ["CircuitBreaker", "CircuitOpenError"]

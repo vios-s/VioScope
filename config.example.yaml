@@ -1,16 +1,25 @@
 # ~/.vioscope/config.yaml
+#
+# API keys are read from environment variables — do NOT put real keys here.
+# Set the relevant key in your shell or .env file:
+#   ANTHROPIC_API_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY
 
+# --- Anthropic example ---
 model:
   provider: anthropic
   model_id: claude-sonnet-4-6
-  api_key: ${ANTHROPIC_API_KEY}
+
+# --- OpenRouter alternative (uncomment and remove the block above) ---
+# model:
+#   provider: openrouter
+#   model_id: openai/gpt-4o
 
 knowledge_base:
   local_path: ~/.vioscope/kb
   gitbook:
     enabled: true
     space_id: "your-space-id"
-    token: ${GITBOOK_PAT}
+    # token read from GITBOOK_PAT env var
     vioscope_root: "/vioscope"
   internal_wiki:
     enabled: false
@@ -26,7 +35,6 @@ agents:
     citation_verify: true
 
   synth:
-    pass
 
   spark:
     model:
@@ -39,11 +47,10 @@ agents:
     default_mode: constructive
 
   scribe:
-    # Uncomment to override provider
+    # Uncomment to override provider:
     # model:
-    #   provider: openai
-    #   model_id: gpt-4o
-    #   api_key: ${OPENAI_API_KEY}
+    #   provider: openrouter
+    #   model_id: openai/gpt-4o
     default_template: neurips
 
   steward:
