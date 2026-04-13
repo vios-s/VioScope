@@ -16,6 +16,7 @@ class Paper(BaseModel):
     authors: List[str] = Field(default_factory=list)
     year: int | None = None
     venue: str | None = None
+    verified: bool = False
 
     model_config = ConfigDict(extra="forbid")
 

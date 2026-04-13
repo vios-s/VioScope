@@ -209,6 +209,7 @@ __marimo__/
 # Agents
 .agent/
 .agents/
+.codex
 .claude/
 .codebuddy/
 .vscode/
