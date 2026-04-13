@@ -34,7 +34,7 @@ agents:
     databases: [semantic_scholar, arxiv, pubmed, openalex]
     citation_verify: true
 
-  synth:
+  synth: {}
 
   spark:
     model:
