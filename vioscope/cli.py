@@ -171,7 +171,12 @@ def config_init(
         console.print(f"[red]Configuration error:[/red] {exc}")
         raise typer.Exit(code=1)
 
-    path_text = str(config_path if config_path is not None else "~/.vioscope/config.yaml")
+    if config_path is not None:
+        path_text = str(config_path)
+    else:
+        path_text = (
+            "~/.vioscope/config.yaml layered over {PROJ_DIR}/.vioscope/config.yaml when present"
+        )
     console.print(
         Panel(
             f"Configuration initialized or loaded at {path_text}. Provider={cfg.model.provider}",
