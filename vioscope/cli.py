@@ -17,7 +17,8 @@ def _effective_config_path(ctx: typer.Context, override: Path | None) -> Path | 
     if override is not None:
         return override
     ctx.obj = ctx.obj or {}
-    return ctx.obj.get("config_path")
+    value = ctx.obj.get("config_path")
+    return value if isinstance(value, Path) else None
 
 
 def _load_and_validate(ctx: typer.Context, override_path: Path | None = None) -> VioScopeConfig:
