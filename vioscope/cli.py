@@ -9,6 +9,8 @@ from vioscope import __version__
 from vioscope.config import ConfigError, VioScopeConfig, create_default_config, load_config
 from vioscope.core.ui import console
 
+_create_default_config = create_default_config
+
 app = typer.Typer(name="vioscope", help="VioScope research CLI", add_completion=False)
 config_app = typer.Typer(name="config", help="Configuration commands", add_completion=False)
 
@@ -158,7 +160,7 @@ def config_init(
     config_path = config
     if config_path is not None and not config_path.exists():
         try:
-            create_default_config(config_path)
+            _create_default_config(config_path)
         except ConfigError as exc:
             console.print(f"[red]Configuration error:[/red] {exc}")
             raise typer.Exit(code=1)

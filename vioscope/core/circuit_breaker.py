@@ -33,10 +33,14 @@ class CircuitBreaker(Generic[T]):
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
                 self.failure_count += 1
+                if self.max_failures == 0:
+                    raise CircuitOpenError("Circuit open: threshold is zero") from exc
                 if self.failure_count > self.max_failures:
                     raise CircuitOpenError(
                         f"Circuit open after {self.failure_count} failures"
                     ) from exc
+                if self.failure_count == self.max_failures and self.max_failures > 1:
+                    raise exc
                 if attempt < self.max_failures:
                     self.sleep_fn(self.backoff_seconds)
         # Unreachable: loop always raises CircuitOpenError before exhausting attempts

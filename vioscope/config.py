@@ -69,6 +69,8 @@ class VioScopeConfig(BaseModel):
         agent = self.agents.get(agent_name)
         if agent and agent.model:
             return agent.model
+        if self.model is None:
+            raise ConfigError("Global model configuration is required.")
         return self.model
 
 
@@ -94,6 +96,7 @@ def load_config(path: Path | str | None = None) -> VioScopeConfig:
     except ValidationError as exc:
         raise ConfigError(f"Invalid configuration: {exc}") from exc
 
+    _validate_precedence(config)
     validate_api_keys(config)
 
     return config
@@ -111,7 +114,7 @@ def validate_api_keys(config: VioScopeConfig) -> None:
             continue
 
         value = os.getenv(env_key)
-        if value is None:
+        if not value:
             raise ConfigError(f"Missing API key for provider '{provider}'. Set {env_key}.")
 
 
@@ -133,6 +136,11 @@ def _ensure_permissions(path: Path) -> None:
         os.chmod(path, 0o600)
     except OSError as exc:
         raise ConfigError(f"Failed to set permissions on {path}: {exc}") from exc
+
+
+def _validate_precedence(config: VioScopeConfig) -> None:
+    if config.model is None:
+        raise ConfigError("Global model configuration is required.")
 
 
 __all__ = [
