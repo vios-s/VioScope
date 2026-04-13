@@ -10,3 +10,21 @@ repos:
     rev: 24.3.0
     hooks:
       - id: black
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: python
+        types: [python]
+        pass_filenames: false
+        args: ["vioscope/"]
+        additional_dependencies:
+          - "mypy==1.20.0"
+          - "typer>=0.12.0"
+          - "rich>=15.0.0"
+          - "pydantic>=2.0.0"
+          - "python-dotenv>=1.0.0"
+          - "pyyaml>=6.0"
+          - "types-pyyaml"

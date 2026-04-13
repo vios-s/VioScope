@@ -3,30 +3,29 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "viosclaw"
+name = "vioscope"
 version = "0.1.0"
-description = "An implementation of claw for VIOS group."
+description = "Research augmentation CLI for the VioScope project."
 authors = [
     { name = "Yuyang Xue", email = "yuyang.xue@ed.ac.uk"}
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "rich>=14.0.0",
-    "openai>=2.0.0",
-    "python-dotenv>=1.0.0",
+    "typer>=0.12.0",
+    "rich>=15.0.0",
     "pydantic>=2.0.0",
-    "pyfiglet>=1.0.0",
-    "ascii_magic>=2.7.0"
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
     "pytest-cov",
-    "black",
-    "ruff",
-    "mypy",
-    "pre-commit"
+    "black==24.3.0",
+    "ruff==0.4.0",
+    "mypy==1.20.0",
+    "pre-commit",
 ]
 
 [tool.black]
@@ -45,14 +44,15 @@ python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+explicit_package_bases = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=viosclaw --cov-report=term-missing"
+addopts = "--cov=vioscope --cov-report=term-missing"
 
 [project.scripts]
-viosclaw = "viosclaw.main:main"
+vioscope = "vioscope.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["viosclaw*"]
+include = ["vioscope*"]
