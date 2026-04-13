@@ -21,12 +21,29 @@ class Paper(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class MethodGroup(BaseModel):
+    name: str
+    papers: List[str]
+    description: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class DatasetEntry(BaseModel):
+    name: str
+    modality: str
+    size: str
+    papers_using: List[str]
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class SynthesisReport(BaseModel):
-    taxonomy: List[str]
-    dataset_summary: List[str]
+    method_taxonomy: List[MethodGroup]
+    dataset_summary: List[DatasetEntry]
     performance_landscape: str
-    gaps: List[str]
-    provenance: str
+    research_gaps: List[str]
+    source_paper_ids: List[str]
 
     model_config = ConfigDict(extra="forbid")
 
@@ -61,7 +78,9 @@ class CritiqueReport(BaseModel):
 __all__ = [
     "CritiqueReport",
     "CritiqueVerdict",
+    "DatasetEntry",
     "HypothesisRecord",
+    "MethodGroup",
     "Paper",
     "SynthesisReport",
 ]

@@ -25,9 +25,9 @@ except Exception:  # pragma: no cover - fallback when agno is unavailable
         def search(self, *args: Any, **kwargs: Any) -> Any:  # pragma: no cover
             raise RuntimeError("PubmedTools unavailable")
 
-    Agent = _FallbackAgent  # type: ignore[assignment]
-    ArxivTools = _FallbackArxivTools  # type: ignore[assignment]
-    PubmedTools = _FallbackPubmedTools  # type: ignore[assignment]
+    Agent = _FallbackAgent  # type: ignore[assignment,misc]
+    ArxivTools = _FallbackArxivTools  # type: ignore[assignment,misc]
+    PubmedTools = _FallbackPubmedTools  # type: ignore[assignment,misc]
 
 from vioscope.config import AgentConfig
 from vioscope.schemas.pipeline import PipelineSession
@@ -147,9 +147,9 @@ class ScoutAgent(Agent):
         elif database == "openalex":
             raw_records = _call_tool(search_openalex, query, limit)
         elif database == "arxiv":
-            raw_records = _call_tool_list(self.arxiv_tools.search, query, limit)
+            raw_records = _call_tool_list(self.arxiv_tools.search, query, limit)  # type: ignore[attr-defined]
         elif database == "pubmed":
-            raw_records = _call_tool_list(self.pubmed_tools.search, query, limit)
+            raw_records = _call_tool_list(self.pubmed_tools.search, query, limit)  # type: ignore[attr-defined]
         else:
             raw_records = []
 
