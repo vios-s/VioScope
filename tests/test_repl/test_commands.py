@@ -8,9 +8,11 @@ from vioscope.repl.commands.base import BaseCommand, UsageError
 from vioscope.repl.commands.help import HelpCommand
 from vioscope.repl.commands.pipeline import PipelineCommand
 from vioscope.repl.commands.session import SessionCommand
+from vioscope.repl.commands.spark import SparkCommand
 from vioscope.repl.commands.synth import SynthCommand
 from vioscope.repl.context import SessionContext
-from vioscope.schemas.research import Paper
+from vioscope.schemas.pipeline import PipelineSession
+from vioscope.schemas.research import HypothesisRecord, Paper, SynthesisReport
 
 
 def _ctx(**kwargs: object) -> SessionContext:
@@ -19,6 +21,44 @@ def _ctx(**kwargs: object) -> SessionContext:
 
 def _paper() -> Paper:
     return Paper(paper_id="p1", title="Test Paper", abstract="abstract", authors=["Author A"])
+
+
+def _synthesis() -> SynthesisReport:
+    return SynthesisReport.model_validate(
+        {
+            "method_taxonomy": [
+                {"name": "Topology-aware", "papers": ["p1"], "description": "Keeps continuity."}
+            ],
+            "dataset_summary": [
+                {
+                    "name": "DRIVE",
+                    "modality": "retinal image",
+                    "size": "40 images",
+                    "papers_using": ["p1"],
+                }
+            ],
+            "performance_landscape": "Topology methods help continuity.",
+            "research_gaps": ["Limited label efficiency evidence."],
+            "source_paper_ids": ["p1"],
+        }
+    )
+
+
+def _hypothesis(rank: int = 1) -> HypothesisRecord:
+    return HypothesisRecord(
+        hypothesis_id=f"h{rank}",
+        title=f"Hypothesis {rank}",
+        statement="Test statement",
+        rationale="Test rationale",
+        evidence=["Gap A"],
+        rank=rank,
+        source_paper_ids=["p1"],
+        role_rationales=[
+            {"role": "innovator", "rationale": "Novel."},
+            {"role": "pragmatist", "rationale": "Feasible."},
+            {"role": "contrarian", "rationale": "Needs controls."},
+        ],
+    )
 
 
 # --- HelpCommand ---
@@ -58,6 +98,57 @@ def test_synth_command_no_agents_returns_error() -> None:
     ctx = _ctx(papers_found=[_paper()])
     result = SynthCommand(ctx, None).run("")
     assert "Agents not initialized" in result
+
+
+# --- SparkCommand ---
+
+
+def test_spark_command_requires_synthesis_or_input() -> None:
+    result = SparkCommand(_ctx(), None).run("")
+    assert "synth" in result.lower()
+
+
+def test_spark_command_no_agents_returns_error() -> None:
+    ctx = _ctx(synthesis=_synthesis())
+    result = SparkCommand(ctx, None).run("")
+    assert "Agents not initialized" in result
+
+
+def test_spark_command_generates_hypotheses_and_updates_context() -> None:
+    ctx = _ctx(synthesis=_synthesis())
+
+    class SparkStub:
+        def generate(self, session: PipelineSession) -> PipelineSession:
+            return session.model_copy(
+                update={"hypothesis_candidates": [_hypothesis(1), _hypothesis(2)]}
+            )
+
+    agents = type("Agents", (), {"spark": SparkStub()})()
+    result = SparkCommand(ctx, agents).run("")
+
+    assert "Spark Complete" in result
+    assert "Candidates generated:** 2" in result
+    assert len(ctx.hypothesis_candidates) == 2
+
+
+def test_spark_command_marks_regeneration_with_additional_constraint() -> None:
+    ctx = _ctx(synthesis=_synthesis(), hypothesis_candidates=[_hypothesis(1)])
+    captured: dict[str, object] = {}
+
+    class SparkStub:
+        def generate(self, session: PipelineSession) -> PipelineSession:
+            captured["next_action"] = session.next_action
+            captured["regeneration_constraints"] = session.regeneration_constraints
+            captured["pivot_count"] = session.pivot_count
+            return session.model_copy(update={"hypothesis_candidates": [_hypothesis(1)]})
+
+    agents = type("Agents", (), {"spark": SparkStub()})()
+    result = SparkCommand(ctx, agents).run('--additional-constraint "No clinical-trial data"')
+
+    assert "Spark Complete" in result
+    assert captured["next_action"] == "regenerate"
+    assert captured["regeneration_constraints"] == ["No clinical-trial data"]
+    assert captured["pivot_count"] == 0
 
 
 # --- PipelineCommand ---
