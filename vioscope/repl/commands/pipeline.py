@@ -14,18 +14,15 @@ class PipelineCommand(BaseCommand):
                 "Run `/scout <query>` first to gather papers, then `/pipeline`."
             )
 
+        first_session_paper = (
+            ctx.papers_found[0]
+            if len(ctx.papers_found) > 0
+            else (ctx.papers_screened[0] if len(ctx.papers_screened) > 0 else None)
+        )
         question = positional.strip() or (
             ctx.selected_hypothesis.title
             if ctx.selected_hypothesis
-            else (
-                ctx.papers_found[0].title
-                if ctx.papers_found
-                else (
-                    ctx.papers_screened[0].title
-                    if ctx.papers_screened
-                    else "interactive research session"
-                )
-            )
+            else (first_session_paper.title if first_session_paper else "interactive research session")
         )
 
         try:

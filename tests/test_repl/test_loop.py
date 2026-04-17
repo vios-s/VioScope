@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from prompt_toolkit.history import FileHistory
 from rich.console import Console
 
 from vioscope.repl.loop import run_interactive
@@ -92,6 +93,9 @@ def test_run_interactive_uses_env_history_file(tmp_path: Path) -> None:
         run_interactive(_make_config())
 
     assert "history" in mock_session_cls.call_args.kwargs
+    history_obj = mock_session_cls.call_args.kwargs["history"]
+    assert isinstance(history_obj, FileHistory)
+    assert history_obj.filename == str(history_file)
     assert history_file.parent.exists()
 
 
