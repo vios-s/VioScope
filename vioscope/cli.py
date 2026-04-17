@@ -134,7 +134,11 @@ def kb_list(
 ) -> None:
     cfg = _load_and_validate(ctx, config)
     kb = _build_local_kb(cfg)
-    records = kb.list_records(record_type or None)
+    try:
+        records = kb.list_records(record_type or None)
+    except ValueError as exc:
+        console.print(f"Error: {exc}")
+        raise typer.Exit(code=1) from exc
 
     table = Table(title="Knowledge Base Records")
     table.add_column("Record ID")

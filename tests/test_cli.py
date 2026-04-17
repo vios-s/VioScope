@@ -102,6 +102,18 @@ def test_kb_show_command_displays_content(tmp_path: Path) -> None:
     assert "Session summary" in result.stdout
 
 
+def test_kb_list_invalid_type_returns_user_error(tmp_path: Path) -> None:
+    config_path = _config_content(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["kb", "list", "--type", "invalid-type", "--config", str(config_path)],
+    )
+
+    assert result.exit_code == 1
+    assert "Error: Unsupported record type 'invalid-type'" in result.stdout
+
+
 def test_kb_search_command_displays_results(tmp_path: Path) -> None:
     config_path = _config_content(tmp_path)
     kb_root = tmp_path / "kb"
