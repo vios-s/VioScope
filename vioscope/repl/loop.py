@@ -38,15 +38,14 @@ def run_interactive(config: VioScopeConfig) -> None:
     agents = build_agents(config)
     ctx = SessionContext(session_id=str(uuid.uuid4()))
 
-    prompt_kwargs: dict[str, object] = {
-        "completer": WordCompleter(SLASH_COMMANDS, sentence=True),
-    }
+    completer = WordCompleter(SLASH_COMMANDS, sentence=True)
+    history = None
     history_file = os.getenv("VIOSCOPE_HISTORY_FILE", "").strip()
     if history_file:
         history_path = Path(history_file).expanduser()
         try:
             history_path.parent.mkdir(parents=True, exist_ok=True)
-            prompt_kwargs["history"] = FileHistory(str(history_path))
+            history = FileHistory(str(history_path))
         except OSError as exc:
             console.print(
                 f"[yellow]Warning:[/yellow] failed to initialize history file "
@@ -54,7 +53,8 @@ def run_interactive(config: VioScopeConfig) -> None:
             )
 
     session: PromptSession[str] = PromptSession(
-        **prompt_kwargs,
+        completer=completer,
+        history=history,
     )
 
     console.print(
