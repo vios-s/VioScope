@@ -47,8 +47,11 @@ def run_interactive(config: VioScopeConfig) -> None:
         try:
             history_path.parent.mkdir(parents=True, exist_ok=True)
             prompt_kwargs["history"] = FileHistory(str(history_path))
-        except OSError:
-            pass
+        except OSError as exc:
+            console.print(
+                f"[yellow]Warning:[/yellow] failed to initialize history file "
+                f"`{history_path}` ({exc}). Continuing without history."
+            )
 
     session: PromptSession[str] = PromptSession(
         **prompt_kwargs,

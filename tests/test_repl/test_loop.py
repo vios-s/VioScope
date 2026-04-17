@@ -93,3 +93,22 @@ def test_run_interactive_uses_env_history_file(tmp_path: Path) -> None:
 
     assert "history" in mock_session_cls.call_args.kwargs
     assert history_file.parent.exists()
+
+
+def test_run_interactive_warns_when_history_init_fails(tmp_path: Path) -> None:
+    rec = Console(record=True)
+    history_file = tmp_path / "repl-history.txt"
+    with (
+        patch("vioscope.repl.loop.build_agents", return_value=MagicMock()),
+        patch("vioscope.repl.loop.PromptSession") as mock_session_cls,
+        patch("vioscope.repl.loop.console", rec),
+        patch("vioscope.repl.loop.Path.mkdir", side_effect=OSError("read-only fs")),
+        patch.dict(os.environ, {"VIOSCOPE_HISTORY_FILE": str(history_file)}),
+    ):
+        mock_session = MagicMock()
+        mock_session.prompt.side_effect = EOFError
+        mock_session_cls.return_value = mock_session
+        run_interactive(_make_config())
+
+    assert "Warning:" in rec.export_text()
+    assert "history" not in mock_session_cls.call_args.kwargs
