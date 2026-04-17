@@ -3,9 +3,12 @@ from .research import (
     CritiqueReport,
     CritiqueVerdict,
     DatasetEntry,
+    HypothesisCandidateList,
     HypothesisRecord,
+    HypothesisRoleRationale,
     MethodGroup,
     Paper,
+    SparkRole,
     SynthesisReport,
 )
 from .writing import DraftSection, JournalTemplate, OutlineSection, PaperOutline
@@ -15,7 +18,9 @@ __all__ = [
     "CritiqueVerdict",
     "DatasetEntry",
     "DraftSection",
+    "HypothesisCandidateList",
     "HypothesisRecord",
+    "HypothesisRoleRationale",
     "JournalTemplate",
     "MethodGroup",
     "OutlineSection",
@@ -24,5 +29,6 @@ __all__ = [
     "PipelineConfig",
     "PipelineSession",
     "ScopeOutput",
+    "SparkRole",
     "SynthesisReport",
 ]

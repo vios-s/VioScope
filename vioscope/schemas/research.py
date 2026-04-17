@@ -3,7 +3,12 @@ from __future__ import annotations
 from enum import Enum
 from typing import List
 
-from pydantic import BaseModel, ConfigDict, Field  # type: ignore[import-not-found]
+from pydantic import (  # type: ignore[import-not-found]
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 
 class Paper(BaseModel):
@@ -48,14 +53,63 @@ class SynthesisReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class SparkRole(str, Enum):
+    INNOVATOR = "innovator"
+    PRAGMATIST = "pragmatist"
+    CONTRARIAN = "contrarian"
+
+
+class HypothesisRoleRationale(BaseModel):
+    role: SparkRole
+    rationale: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class HypothesisRecord(BaseModel):
     hypothesis_id: str
     title: str
     statement: str
     rationale: str
     evidence: List[str] = Field(default_factory=list)
+    rank: int | None = Field(default=None, ge=1)
+    source_paper_ids: List[str] = Field(default_factory=list)
+    role_rationales: List[HypothesisRoleRationale] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="forbid")
+
+
+class HypothesisCandidateList(BaseModel):
+    candidates: List[HypothesisRecord] = Field(min_length=1)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_candidate_details(self) -> "HypothesisCandidateList":
+        required_roles = {
+            SparkRole.INNOVATOR,
+            SparkRole.PRAGMATIST,
+            SparkRole.CONTRARIAN,
+        }
+
+        for candidate in self.candidates:
+            if candidate.rank is None:
+                raise ValueError("Each hypothesis candidate must include a rank.")
+            if not candidate.source_paper_ids:
+                raise ValueError(
+                    "Each hypothesis candidate must include source_paper_ids provenance."
+                )
+            if not candidate.role_rationales:
+                raise ValueError("Each hypothesis candidate must include role_rationales.")
+            seen_roles = {item.role for item in candidate.role_rationales}
+            if seen_roles != required_roles:
+                missing_roles = sorted(role.value for role in required_roles - seen_roles)
+                raise ValueError(
+                    "Each hypothesis candidate must include rationales for all Spark roles. "
+                    f"Missing: {', '.join(missing_roles)}"
+                )
+
+        return self
 
 
 class CritiqueVerdict(str, Enum):
@@ -79,8 +133,11 @@ __all__ = [
     "CritiqueReport",
     "CritiqueVerdict",
     "DatasetEntry",
+    "HypothesisCandidateList",
     "HypothesisRecord",
+    "HypothesisRoleRationale",
     "MethodGroup",
     "Paper",
+    "SparkRole",
     "SynthesisReport",
 ]
