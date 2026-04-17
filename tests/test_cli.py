@@ -14,6 +14,16 @@ def _write(path: Path, content: str) -> None:
     path.write_text(content)
 
 
+def _config_content(tmp_path: Path) -> Path:
+    config_path = tmp_path / "config.yaml"
+    _write(
+        config_path,
+        "model:\n  provider: ollama\n  model_id: llama3.2\nknowledge_base:\n  local_path: "
+        f"{tmp_path / 'kb'}\n",
+    )
+    return config_path
+
+
 def test_main_without_command_shows_ready_message() -> None:
     result = runner.invoke(app, [])
 
@@ -22,8 +32,7 @@ def test_main_without_command_shows_ready_message() -> None:
 
 
 def test_research_command_uses_explicit_config(tmp_path: Path) -> None:
-    config_path = tmp_path / "config.yaml"
-    _write(config_path, "model:\n  provider: ollama\n  model_id: llama3.2\n")
+    config_path = _config_content(tmp_path)
 
     result = runner.invoke(app, ["research", "retinal vessel study", "--config", str(config_path)])
 
@@ -32,20 +41,82 @@ def test_research_command_uses_explicit_config(tmp_path: Path) -> None:
     assert "Model: ollama:llama3.2" in result.stdout
 
 
-def test_kb_command_shows_placeholder(tmp_path: Path) -> None:
-    config_path = tmp_path / "config.yaml"
-    _write(config_path, "model:\n  provider: ollama\n  model_id: llama3.2\n")
+def test_kb_list_command_displays_records(tmp_path: Path) -> None:
+    config_path = _config_content(tmp_path)
+    kb_root = tmp_path / "kb"
+    _write(
+        kb_root / "literature" / "2026-04-13T00-00-00Z_session-1_literature.md",
+        "---\n"
+        "type: literature\n"
+        "session_id: session-1\n"
+        "created_at: 2026-04-13T00:00:00Z\n"
+        "research_question: retinal vessel study\n"
+        "---\n"
+        "Literature summary",
+    )
 
-    result = runner.invoke(app, ["kb", "--action", "list", "--config", str(config_path)])
+    result = runner.invoke(app, ["kb", "list", "--config", str(config_path)])
 
     assert result.exit_code == 0
-    assert "KB command is not yet implemented." in result.stdout
-    assert "Action: list" in result.stdout
+    assert "Knowledge Base Records" in result.stdout
+    assert "session-1" in result.stdout
+
+
+def test_kb_show_command_displays_content(tmp_path: Path) -> None:
+    config_path = _config_content(tmp_path)
+    kb_root = tmp_path / "kb"
+    _write(
+        kb_root / "sessions" / "2026-04-13T00-00-00Z_session-1_sessions.md",
+        "---\n"
+        "type: sessions\n"
+        "session_id: session-1\n"
+        "created_at: 2026-04-13T00:00:00Z\n"
+        "---\n"
+        "Session summary",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "kb",
+            "show",
+            "sessions",
+            "2026-04-13T00-00-00Z_session-1_sessions",
+            "--config",
+            str(config_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Session summary" in result.stdout
+
+
+def test_kb_search_command_displays_results(tmp_path: Path) -> None:
+    config_path = _config_content(tmp_path)
+    kb_root = tmp_path / "kb"
+    _write(
+        kb_root / "hypotheses" / "2026-04-13T00-00-00Z_session-2_hypotheses.md",
+        "---\n"
+        "type: hypotheses\n"
+        "session_id: session-2\n"
+        "created_at: 2026-04-13T00:00:00Z\n"
+        "research_question: retinal vessel study\n"
+        "---\n"
+        "Hypothesis about retinal vessels",
+    )
+
+    result = runner.invoke(
+        app,
+        ["kb", "search", "retinal", "--config", str(config_path)],
+    )
+
+    assert result.exit_code == 0
+    assert "KB Search: retinal" in result.stdout
+    assert "session-2" in result.stdout
 
 
 def test_config_validate_reports_success(tmp_path: Path) -> None:
-    config_path = tmp_path / "config.yaml"
-    _write(config_path, "model:\n  provider: ollama\n  model_id: llama3.2\n")
+    config_path = _config_content(tmp_path)
 
     result = runner.invoke(app, ["config", "validate", "--config", str(config_path)])
 

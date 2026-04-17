@@ -4,15 +4,18 @@ from pathlib import Path
 
 import typer
 from rich.panel import Panel
+from rich.table import Table
 
 from vioscope import __version__
 from vioscope.config import ConfigError, VioScopeConfig, create_default_config, load_config
 from vioscope.core.ui import console
+from vioscope.kb import LocalKB
 
 _create_default_config = create_default_config
 
 app = typer.Typer(name="vioscope", help="VioScope research CLI", add_completion=False)
 config_app = typer.Typer(name="config", help="Configuration commands", add_completion=False)
+kb_app = typer.Typer(name="kb", help="Knowledge base operations", add_completion=False)
 
 
 def _effective_config_path(ctx: typer.Context, override: Path | None) -> Path | None:
@@ -121,20 +124,82 @@ def write(
     )
 
 
-@app.command(help="Knowledge base operations")
-def kb(
+def _build_local_kb(cfg: VioScopeConfig) -> LocalKB:
+    kb_root: Path | None = None
+    if cfg.knowledge_base and isinstance(cfg.knowledge_base.get("local_path"), str):
+        kb_root = Path(str(cfg.knowledge_base["local_path"])).expanduser()
+    return LocalKB(kb_root)
+
+
+@kb_app.command("list", help="List local KB records")
+def kb_list(
     ctx: typer.Context,
-    action: str = typer.Option("list", "--action", help="KB action (list/show/sync)"),
+    record_type: str = typer.Option("", "--type", help="Optional record type filter"),
     config: Path | None = typer.Option(None, "--config", "-c", help="Path to config file"),
 ) -> None:
     cfg = _load_and_validate(ctx, config)
-    console.print(
-        Panel(
-            f"KB command is not yet implemented.\nAction: {action}\nModel: {cfg.model.provider}:{cfg.model.model_id}",
-            title="KB",
-            expand=False,
+    kb = _build_local_kb(cfg)
+    records = kb.list_records(record_type or None)
+
+    table = Table(title="Knowledge Base Records")
+    table.add_column("Record ID")
+    table.add_column("Type")
+    table.add_column("Session")
+    table.add_column("Created At")
+    for record in records:
+        table.add_row(
+            str(record.get("record_id", "")),
+            str(record.get("record_type", "")),
+            str(record.get("session_id", "")),
+            str(record.get("created_at", "")),
         )
+    console.print(table)
+
+
+@kb_app.command("show", help="Show a stored KB record")
+def kb_show(
+    ctx: typer.Context,
+    record_type: str = typer.Argument(..., help="Record type"),
+    record_id: str = typer.Argument(..., help="Record id"),
+    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config file"),
+) -> None:
+    cfg = _load_and_validate(ctx, config)
+    kb = _build_local_kb(cfg)
+    content = kb.read_record(record_type, record_id)
+    console.print(Panel(content, title=f"{record_type}:{record_id}", expand=False))
+
+
+@kb_app.command("search", help="Search the local KB")
+def kb_search(
+    ctx: typer.Context,
+    query: str = typer.Argument(..., help="Search query"),
+    limit: int = typer.Option(5, "--limit", min=1, help="Maximum results"),
+    record_types: list[str] | None = typer.Option(
+        None, "--type", help="Optional record type filters"
+    ),
+    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config file"),
+) -> None:
+    cfg = _load_and_validate(ctx, config)
+    kb = _build_local_kb(cfg)
+    results = kb.search(
+        query=query,
+        limit=limit,
+        record_types=tuple(record_types) if record_types else None,
     )
+
+    table = Table(title=f"KB Search: {query}")
+    table.add_column("Type")
+    table.add_column("Session")
+    table.add_column("Record ID")
+    table.add_column("Snippet")
+    for record in results:
+        table.add_row(
+            record.record_type,
+            record.session_id,
+            record.record_id,
+            record.content_snippet.replace("\n", " "),
+        )
+    console.print(table)
 
 
 @config_app.command("validate", help="Validate configuration")
@@ -187,6 +252,7 @@ def config_init(
 
 
 app.add_typer(config_app, name="config")
+app.add_typer(kb_app, name="kb")
 
 
 if __name__ == "__main__":  # pragma: no cover
