@@ -8,7 +8,7 @@ from vioscope.schemas.pipeline import PipelineConfig, PipelineSession
 
 class ScoutCommand(BaseCommand):
     def run(self, args: str) -> str:
-        positional, flag_input, flag_from_kb = self._parse_flags(args)
+        positional, _flag_input, _flag_from_kb = self._parse_flags(args)
         query = positional.strip().strip("\"'")
         if not query:
             return "Usage: /scout <query>  Search for papers matching a query."
