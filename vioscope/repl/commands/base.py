@@ -35,6 +35,8 @@ class BaseCommand(ABC):
             return {"synthesis": self.ctx.synthesis, "source": "session"}
         if self.ctx.papers_found:
             return {"papers": self.ctx.papers_found, "source": "session"}
+        if self.ctx.papers_screened:
+            return {"papers": self.ctx.papers_screened, "source": "session"}
         if flag_input:
             path = Path(flag_input)
             if not path.exists():
