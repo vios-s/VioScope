@@ -213,6 +213,8 @@ __marimo__/
 .claude/
 .codebuddy/
 .vscode/
+.clinerules
+.kilocode/
 skills-lock.json
 _bmad/
 _bmad-output/

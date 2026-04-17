@@ -33,7 +33,7 @@ class PipelineSession(BaseModel):
     research_question: str
     created_at: datetime
     config: PipelineConfig
-    entry_mode: Literal["research", "search_only", "write", "review"] = "research"
+    entry_mode: Literal["research", "search_only", "write", "review", "interactive"] = "research"
     next_action: Literal["continue", "regenerate", "quit"] = "continue"
     regeneration_constraints: list[str] = Field(default_factory=list)
     stage_reached: int = 0
