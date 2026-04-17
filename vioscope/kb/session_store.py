@@ -16,7 +16,7 @@ def save_checkpoint(session: PipelineSession, sessions_dir: Path | str | None = 
     target = safe_path(resolved_dir, f"{session.session_id}.json")
     temp = safe_path(resolved_dir, f"{session.session_id}.json.tmp")
     temp.write_text(session.model_dump_json(indent=2), encoding="utf-8")
-    temp.rename(target)
+    temp.replace(target)
 
 
 def load_checkpoint(
