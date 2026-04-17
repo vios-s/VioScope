@@ -39,7 +39,7 @@ def run_interactive(config: VioScopeConfig) -> None:
     ctx = SessionContext(session_id=str(uuid.uuid4()))
 
     completer = WordCompleter(SLASH_COMMANDS, sentence=True)
-    history = None
+    history: FileHistory | None = None
     history_file = os.getenv("VIOSCOPE_HISTORY_FILE", "").strip()
     if history_file:
         history_path = Path(history_file).expanduser()
@@ -52,10 +52,10 @@ def run_interactive(config: VioScopeConfig) -> None:
                 f"`{history_path}` ({exc}). Continuing without history."
             )
 
-    session: PromptSession[str] = PromptSession(
-        completer=completer,
-        history=history,
-    )
+    if history is None:
+        session: PromptSession[str] = PromptSession(completer=completer)
+    else:
+        session = PromptSession(completer=completer, history=history)
 
     console.print(
         Panel(
