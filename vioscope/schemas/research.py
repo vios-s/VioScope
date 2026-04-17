@@ -118,8 +118,13 @@ class CritiqueVerdict(str, Enum):
     FAIL = "fail"
 
 
+class SkepticMode(str, Enum):
+    HYPOTHESIS = "hypothesis"
+    MANUSCRIPT = "manuscript"
+
+
 class CritiqueReport(BaseModel):
-    mode: str
+    mode: SkepticMode
     verdict: CritiqueVerdict
     rationale: str
     issues: List[str] = Field(default_factory=list)
@@ -138,6 +143,7 @@ __all__ = [
     "HypothesisRoleRationale",
     "MethodGroup",
     "Paper",
+    "SkepticMode",
     "SparkRole",
     "SynthesisReport",
 ]

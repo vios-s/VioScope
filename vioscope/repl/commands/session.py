@@ -30,6 +30,14 @@ class SessionCommand(BaseCommand):
         else:
             lines.append("**Selected hypothesis:** none")
 
+        if ctx.critique_reports:
+            latest = ctx.critique_reports[-1]
+            lines.append(
+                f"**Critique reports:** {len(ctx.critique_reports)} (latest: {latest.mode.value}/{latest.verdict.value})"
+            )
+        else:
+            lines.append("**Critique reports:** none — use `/skeptic`")
+
         if ctx.draft_sections:
             lines.append(f"**Draft sections:** {len(ctx.draft_sections)}")
         else:
