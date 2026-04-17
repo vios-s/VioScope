@@ -8,6 +8,7 @@ from .research import (
     HypothesisRoleRationale,
     MethodGroup,
     Paper,
+    SkepticMode,
     SparkRole,
     SynthesisReport,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "PipelineConfig",
     "PipelineSession",
     "ScopeOutput",
+    "SkepticMode",
     "SparkRole",
     "SynthesisReport",
 ]

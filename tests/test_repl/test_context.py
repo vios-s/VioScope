@@ -4,6 +4,7 @@ import pytest
 
 from vioscope.repl.context import SessionContext
 from vioscope.schemas.pipeline import PipelineSession
+from vioscope.schemas.research import CritiqueReport, CritiqueVerdict, SkepticMode
 
 
 def test_session_context_construction() -> None:
@@ -14,6 +15,7 @@ def test_session_context_construction() -> None:
     assert ctx.synthesis is None
     assert ctx.hypothesis_candidates == []
     assert ctx.selected_hypothesis is None
+    assert ctx.critique_reports == []
     assert ctx.draft_sections == []
 
 
@@ -34,3 +36,22 @@ def test_to_pipeline_session_returns_pipeline_session() -> None:
     assert ps.synthesis is None
     assert ps.hypothesis_candidates is None
     assert ps.selected_hypothesis is None
+    assert ps.critique_reports is None
+
+
+def test_to_pipeline_session_carries_critique_reports() -> None:
+    ctx = SessionContext(
+        session_id="test-789",
+        critique_reports=[
+            CritiqueReport(
+                mode=SkepticMode.HYPOTHESIS,
+                verdict=CritiqueVerdict.PIVOT,
+                rationale="Needs more evidence.",
+            )
+        ],
+    )
+
+    ps = ctx.to_pipeline_session("Can this hypothesis survive critique?")
+
+    assert ps.critique_reports is not None
+    assert ps.critique_reports[0].verdict is CritiqueVerdict.PIVOT
