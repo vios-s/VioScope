@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from rich.console import Console
@@ -57,3 +59,37 @@ def test_run_interactive_dispatches_unknown_command() -> None:
 def test_welcome_panel_printed() -> None:
     output = _run(EOFError)
     assert "interactive research session" in output
+
+
+def test_run_interactive_does_not_create_history_by_default() -> None:
+    rec = Console(record=True)
+    with (
+        patch("vioscope.repl.loop.build_agents", return_value=MagicMock()),
+        patch("vioscope.repl.loop.PromptSession") as mock_session_cls,
+        patch("vioscope.repl.loop.console", rec),
+        patch.dict(os.environ, {}, clear=True),
+    ):
+        mock_session = MagicMock()
+        mock_session.prompt.side_effect = EOFError
+        mock_session_cls.return_value = mock_session
+        run_interactive(_make_config())
+
+    assert "history" not in mock_session_cls.call_args.kwargs
+
+
+def test_run_interactive_uses_env_history_file(tmp_path: Path) -> None:
+    rec = Console(record=True)
+    history_file = tmp_path / "repl-history.txt"
+    with (
+        patch("vioscope.repl.loop.build_agents", return_value=MagicMock()),
+        patch("vioscope.repl.loop.PromptSession") as mock_session_cls,
+        patch("vioscope.repl.loop.console", rec),
+        patch.dict(os.environ, {"VIOSCOPE_HISTORY_FILE": str(history_file)}),
+    ):
+        mock_session = MagicMock()
+        mock_session.prompt.side_effect = EOFError
+        mock_session_cls.return_value = mock_session
+        run_interactive(_make_config())
+
+    assert "history" in mock_session_cls.call_args.kwargs
+    assert history_file.parent.exists()

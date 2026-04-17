@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import uuid
 from pathlib import Path
 
@@ -36,12 +37,21 @@ SLASH_COMMANDS = [
 def run_interactive(config: VioScopeConfig) -> None:
     agents = build_agents(config)
     ctx = SessionContext(session_id=str(uuid.uuid4()))
-    history_path = Path.home() / ".vioscope" / "history"
-    history_path.parent.mkdir(parents=True, exist_ok=True)
+
+    prompt_kwargs: dict[str, object] = {
+        "completer": WordCompleter(SLASH_COMMANDS, sentence=True),
+    }
+    history_file = os.getenv("VIOSCOPE_HISTORY_FILE", "").strip()
+    if history_file:
+        history_path = Path(history_file).expanduser()
+        try:
+            history_path.parent.mkdir(parents=True, exist_ok=True)
+            prompt_kwargs["history"] = FileHistory(str(history_path))
+        except OSError:
+            pass
 
     session: PromptSession[str] = PromptSession(
-        history=FileHistory(str(history_path)),
-        completer=WordCompleter(SLASH_COMMANDS, sentence=True),
+        **prompt_kwargs,
     )
 
     console.print(

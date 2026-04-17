@@ -75,6 +75,12 @@ def test_pipeline_command_with_papers_promotes() -> None:
     assert "pipeline" in result.lower() or "Pipeline" in result
 
 
+def test_pipeline_command_with_screened_papers_promotes() -> None:
+    ctx = _ctx(papers_screened=[_paper()])
+    result = PipelineCommand(ctx, None).run("")
+    assert "pipeline" in result.lower() or "Pipeline" in result
+
+
 # --- BaseCommand resolve_input ---
 
 

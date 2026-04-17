@@ -8,7 +8,7 @@ class PipelineCommand(BaseCommand):
         positional, _flag_input, _flag_from_kb = self._parse_flags(args)
         ctx = self.ctx
 
-        if not (ctx.papers_found or ctx.synthesis or ctx.selected_hypothesis):
+        if not (ctx.papers_found or ctx.papers_screened or ctx.synthesis or ctx.selected_hypothesis):
             return (
                 "No session context to promote.\n"
                 "Run `/scout <query>` first to gather papers, then `/pipeline`."
@@ -18,7 +18,13 @@ class PipelineCommand(BaseCommand):
             ctx.selected_hypothesis.title
             if ctx.selected_hypothesis
             else (
-                ctx.papers_found[0].title if ctx.papers_found else "interactive research session"
+                ctx.papers_found[0].title
+                if ctx.papers_found
+                else (
+                    ctx.papers_screened[0].title
+                    if ctx.papers_screened
+                    else "interactive research session"
+                )
             )
         )
 
