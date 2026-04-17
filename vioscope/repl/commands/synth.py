@@ -21,7 +21,7 @@ class SynthCommand(BaseCommand):
         if not papers:
             try:
                 resolved = self.resolve_input(flag_input, flag_from_kb)
-                papers = resolved.get("papers", [])
+                papers = resolved.get("papers") or resolved.get("data", [])
             except UsageError as exc:
                 return str(exc)
 
