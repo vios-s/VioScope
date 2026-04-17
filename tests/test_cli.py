@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -24,11 +25,21 @@ def _config_content(tmp_path: Path) -> Path:
     return config_path
 
 
-def test_main_without_command_shows_ready_message() -> None:
-    result = runner.invoke(app, [])
+def test_main_without_command_starts_repl(tmp_path: Path) -> None:
+    config_path = _config_content(tmp_path)
+    with patch("vioscope.repl.run_interactive") as mock_repl:
+        result = runner.invoke(app, ["--config", str(config_path)])
 
     assert result.exit_code == 0
-    assert "VioScope CLI is ready." in result.stdout
+    mock_repl.assert_called_once()
+
+
+def test_main_help_lists_subcommands() -> None:
+    result = runner.invoke(app, ["--help"])
+
+    assert result.exit_code == 0
+    for cmd in ("research", "search", "review", "write", "kb", "config"):
+        assert cmd in result.stdout
 
 
 def test_research_command_uses_explicit_config(tmp_path: Path) -> None:

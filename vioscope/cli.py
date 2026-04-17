@@ -6,7 +6,6 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from vioscope import __version__
 from vioscope.config import ConfigError, VioScopeConfig, create_default_config, load_config
 from vioscope.core.ui import console
 from vioscope.kb import LocalKB
@@ -46,14 +45,10 @@ def main(
     if ctx.invoked_subcommand is not None:
         return
 
-    console.print(
-        Panel(
-            f"VioScope CLI is ready. Version {__version__}.\nUse --help to see available commands.",
-            title="VioScope",
-            expand=False,
-        )
-    )
-    raise typer.Exit()
+    cfg = _load_and_validate(ctx, config)
+    from vioscope.repl import run_interactive
+
+    run_interactive(cfg)
 
 
 @app.command(help="Run full research workflow")
