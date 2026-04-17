@@ -17,8 +17,6 @@
 
 ---
 
-> **The problem**: Every time a PhD student or postdoc leaves your lab, months of accumulated research knowledge leave with them. Every new member re-reads the same papers, re-makes the same mistakes, re-discovers the same dead ends.
->
 > **VioScope builds your lab's research memory while you work.**
 
 ---
