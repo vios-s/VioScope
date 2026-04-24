@@ -8,11 +8,19 @@ from vioscope.repl.commands.base import BaseCommand, UsageError
 from vioscope.repl.commands.help import HelpCommand
 from vioscope.repl.commands.pipeline import PipelineCommand
 from vioscope.repl.commands.session import SessionCommand
+from vioscope.repl.commands.skeptic import SkepticCommand
 from vioscope.repl.commands.spark import SparkCommand
 from vioscope.repl.commands.synth import SynthCommand
 from vioscope.repl.context import SessionContext
 from vioscope.schemas.pipeline import PipelineSession
-from vioscope.schemas.research import HypothesisRecord, Paper, SynthesisReport
+from vioscope.schemas.research import (
+    CritiqueReport,
+    CritiqueVerdict,
+    HypothesisRecord,
+    Paper,
+    SkepticMode,
+    SynthesisReport,
+)
 
 
 def _ctx(**kwargs: object) -> SessionContext:
@@ -61,6 +69,17 @@ def _hypothesis(rank: int = 1) -> HypothesisRecord:
     )
 
 
+def _critique(mode: SkepticMode = SkepticMode.HYPOTHESIS) -> CritiqueReport:
+    return CritiqueReport(
+        mode=mode,
+        verdict=CritiqueVerdict.PIVOT,
+        rationale="Needs stronger evidence.",
+        issues=["Confounding remains unresolved."],
+        recommendations=["Add a stronger baseline."],
+        target_id="target-1",
+    )
+
+
 # --- HelpCommand ---
 
 
@@ -84,6 +103,13 @@ def test_session_command_with_papers() -> None:
     ctx = _ctx(papers_found=[_paper()])
     result = SessionCommand(ctx, None).run("")
     assert "Papers found:** 1" in result
+
+
+def test_session_command_with_critique_reports() -> None:
+    ctx = _ctx(critique_reports=[_critique()])
+    result = SessionCommand(ctx, None).run("")
+    assert "Critique reports:** 1" in result
+    assert "hypothesis/pivot" in result
 
 
 # --- SynthCommand ---
@@ -149,6 +175,67 @@ def test_spark_command_marks_regeneration_with_additional_constraint() -> None:
     assert captured["next_action"] == "regenerate"
     assert captured["regeneration_constraints"] == ["No clinical-trial data"]
     assert captured["pivot_count"] == 0
+
+
+# --- SkepticCommand ---
+
+
+def test_skeptic_command_requires_context() -> None:
+    result = SkepticCommand(_ctx(), None).run("")
+    assert "No Skeptic target found" in result
+
+
+def test_skeptic_command_no_agents_returns_error() -> None:
+    ctx = _ctx(selected_hypothesis=_hypothesis(1))
+    result = SkepticCommand(ctx, None).run("")
+    assert "Agents not initialized" in result
+
+
+def test_skeptic_command_reviews_hypothesis_and_updates_context() -> None:
+    ctx = _ctx(selected_hypothesis=_hypothesis(1))
+
+    class SkepticStub:
+        def critique_hypothesis(
+            self,
+            session: PipelineSession,
+            hypothesis: HypothesisRecord | None = None,
+            *,
+            additional_constraints: list[str] | None = None,
+        ) -> CritiqueReport:
+            assert session.selected_hypothesis is not None
+            assert hypothesis is not None
+            assert additional_constraints == ["Need stronger causal controls"]
+            return _critique(SkepticMode.HYPOTHESIS)
+
+    agents = type("Agents", (), {"skeptic": SkepticStub()})()
+    result = SkepticCommand(ctx, agents).run("Need stronger causal controls")
+
+    assert "Skeptic Complete" in result
+    assert "Verdict:** pivot" in result
+    assert len(ctx.critique_reports) == 1
+
+
+def test_skeptic_command_reviews_manuscript_from_session() -> None:
+    ctx = _ctx(draft_sections=["Introduction text", "Methods text"])
+
+    class SkepticStub:
+        def critique_manuscript(
+            self,
+            session: PipelineSession,
+            draft_sections: list[object] | None = None,
+            *,
+            additional_constraints: list[str] | None = None,
+        ) -> CritiqueReport:
+            assert draft_sections is not None
+            assert len(draft_sections) == 2
+            assert additional_constraints is None
+            return _critique(SkepticMode.MANUSCRIPT)
+
+    agents = type("Agents", (), {"skeptic": SkepticStub()})()
+    result = SkepticCommand(ctx, agents).run("")
+
+    assert "Mode:** manuscript" in result
+    assert len(ctx.critique_reports) == 1
 
 
 # --- PipelineCommand ---
